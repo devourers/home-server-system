@@ -1,0 +1,22 @@
+[package]
+name = "home-server-system"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+notify-rust = "^3"
+
+[lib]
+name = "utils"
+path = "src/utils.rs"
+crate-type = ["lib"]
+
+[[bin]]
+name = "server"
+path = "src/server/main.rs"
+
+[[bin]]
+name = "client"
+path = "src/client/main.rs"
