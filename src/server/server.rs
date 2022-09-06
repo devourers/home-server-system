@@ -21,11 +21,14 @@ fn handle_stream(mut stream: std::net::TcpStream){
         .map(|result| result.unwrap())
         .take_while(|line| !line.is_empty())
         .collect();
-
+    println!("created http_req");
     let body: &String = &http_request[0];
     let sender: &String = &String::from("Client");
     let msg = utils::Message::new(body, sender, utils::MessageType::HelloMsg);
     process_message(&msg);
+    let response = "conn";
+    stream.write(response.as_bytes());
+    stream.flush();
 }
 
 fn process_message(msg : &utils::Message) -> i32{
@@ -41,10 +44,9 @@ fn process_message(msg : &utils::Message) -> i32{
 }
 
 pub fn run_server(){
-    let listener = std::net::TcpListener::bind("127.0.0.1:8080").unwrap();
+    let listener = std::net::TcpListener::bind("192.168.1.66:8080").unwrap();
     for stream in listener.incoming(){
         let stream = stream.unwrap();
-
         handle_stream(stream);
     }
 }
