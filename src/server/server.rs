@@ -14,21 +14,25 @@ fn send_notif(body: &String, ) {
     .show().unwrap();
 }
 
-fn handle_stream(mut stream: std::net::TcpStream){
-    let buf_reader = std::io::BufReader::new(&mut stream);
-    let http_request: Vec<_> = buf_reader
-        .lines()
-        .map(|result| result.unwrap())
-        .take_while(|line| !line.is_empty())
-        .collect();
-    println!("created http_req");
-    let body: &String = &http_request[0];
-    let sender: &String = &String::from("Client");
-    let msg = utils::Message::new(body, sender, utils::MessageType::HelloMsg);
-    process_message(&msg);
-    let response = "conn";
-    stream.write(response.as_bytes());
-    stream.flush();
+
+fn handle_stream(stream: std::result::Result<std::net::TcpStream, std::io::Error>){
+    let mut stream = stream.unwrap();
+    loop{
+        let mut buf_reader = std::io::BufReader::new(&mut stream);
+        let mut client_line = String::new();
+        let buff_res = buf_reader.read_line(&mut client_line);
+        if buff_res.is_err() || matches!(client_line.as_str(), ""){
+            break;
+        }
+        let body: &String = &client_line;
+        let sender: &String = &String::from("Client");
+        let msg = utils::Message::new(body, sender, utils::MessageType::HelloMsg);
+        let response = "conn\n";
+        stream.write(response.as_bytes());
+        stream.flush();
+        process_message(&msg);
+    }
+
 }
 
 fn process_message(msg : &utils::Message) -> i32{
@@ -46,7 +50,6 @@ fn process_message(msg : &utils::Message) -> i32{
 pub fn run_server(){
     let listener = std::net::TcpListener::bind("192.168.1.66:8080").unwrap();
     for stream in listener.incoming(){
-        let stream = stream.unwrap();
         handle_stream(stream);
     }
 }
