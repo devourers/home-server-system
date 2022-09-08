@@ -1,0 +1,5 @@
+{
+    "name" : "home-server",
+    "addres" : "192.168.1.0",
+    "port" : "8080"
+}

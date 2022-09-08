@@ -9,9 +9,9 @@ use std::{
 
 #[derive(serde::Deserialize, Debug, Clone)]
 pub struct Client{
-    name : String,
-    adrs : String,
-    port : String
+    pub name : String,
+    pub adrs : String,
+    pub port : String
 }
 
 impl Client{
@@ -70,6 +70,9 @@ impl Client{
         .expect("Failed to read line");
         let server_id: usize = server_id.trim().parse().unwrap();
         let mut curr_connect_result = std::net::TcpStream::connect_timeout(&addrs[server_id], std::time::Duration::from_millis(2));
+        if curr_connect_result.is_ok(){
+            println!("Connected to server {}", &addrs[server_id]);
+        }
         return curr_connect_result.unwrap();
     }
 
