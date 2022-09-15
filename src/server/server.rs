@@ -9,27 +9,25 @@ use std::{
 #[derive(serde::Deserialize, Debug, Clone)]
 pub struct Server{
     pub name: String,
-    pub adrs: String,
-    pub port: String
+    pub adrs: std::net::IpAddr,
+    pub port: u16
 }
 
 
 impl Server{
-    pub fn init_from_json(file: String) -> Self{
-        let data = std::fs::read_to_string(&file).expect("Unable to read file");
-        let parsed_server: Server = serde_json::from_str(&data).unwrap();
-        return parsed_server;
-    }
-
-    pub fn new(name: String, adrs: String, port: String) -> Self{
-        return Server{            
-            name : name.to_string(), 
-            adrs : adrs.to_string(),
-            port : port.to_string() }
+    pub fn init() -> Self{
+        let addr = local_ip_address::local_ip().unwrap();
+        let name = ("home-server").to_string(); //TODO -- parse with json, wait for commands
+        return Server{
+            name: name,
+            adrs: addr,
+            port: utils::PORT
+        }
     }
 
     pub fn run(&self){
-        let listener = std::net::TcpListener::bind("192.168.43.164:8080").unwrap();
+        let adrsock = std::net::SocketAddr::new(self.adrs, self.port);
+        let listener = std::net::TcpListener::bind(&adrsock).unwrap();
         for stream in listener.incoming(){
             self.handle_stream(stream);
         }

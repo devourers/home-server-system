@@ -1,3 +1,5 @@
+pub const PORT:u16 = 8080;
+
 pub enum MessageType{
     HelloMsg,
     ShutdownMsg,

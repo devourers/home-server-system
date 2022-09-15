@@ -9,35 +9,33 @@ use std::{
 
 #[derive(serde::Deserialize, Debug, Clone)]
 pub struct Client{
-    pub name : String,
-    pub adrs : String,
-    pub port : String
+    pub name: String,
+    pub adrs: std::net::IpAddr,
+    pub port: u16
 }
 
 impl Client{
-    pub fn init_from_json(file: String) -> Self{
-        let data = std::fs::read_to_string(&file).expect("Unable to read file");
-        let parsed_client: Client = serde_json::from_str(&data).unwrap();
-        return parsed_client;
-    }
-
-    pub fn new(name : &String, adrs : &String, port : &String) -> Self{
-        return Client{ 
-            name : name.to_string(), 
-            adrs : adrs.to_string(),
-            port : port.to_string() };
+    pub fn init() -> Self{
+        let addr = local_ip_address::local_ip().unwrap();
+        let name = ("home-client").to_string(); //TODO -- parse with json, wait for commands
+        return Client{
+            name: name,
+            adrs: addr,
+            port: utils::PORT
+        }
     }
     
     pub fn scan_network(&self) -> Vec<std::net::SocketAddr>{
         let mut res_vec: Vec<std::net::SocketAddr> = vec![];
         let ips: Vec<u8> = (0..255).map(|v| v).collect();
-        let parsed_net: Vec<&str> = self.adrs.split(".").collect();
+        let str_adrs = &self.adrs.to_string();
+        let parsed_net: Vec<&str> = str_adrs.split(".").collect();
         let mut total_conns = 0;
         for ip in ips{
             let addr1: u8 = parsed_net[0].parse().unwrap();
             let addr2: u8 = parsed_net[1].parse().unwrap();
             let addr3: u8 = parsed_net[2].parse().unwrap();
-            let curr_adr = std::net::SocketAddr::from(([addr1, addr2, addr3, ip], self.port.parse::<u16>().unwrap()));
+            let curr_adr = std::net::SocketAddr::from(([addr1, addr2, addr3, ip], self.port));
             let curr_connect_result = std::net::TcpStream::connect_timeout(&curr_adr, std::time::Duration::from_millis(2));
             if curr_connect_result.is_ok() {
                 let mut unwrapped_stream = curr_connect_result.unwrap();
@@ -81,9 +79,9 @@ impl Client{
         return_str.push_str("Client ");
         return_str.push_str(&self.name);
         return_str.push_str(", network ");
-        return_str.push_str(&self.adrs);
+        return_str.push_str(&self.adrs.to_string());
         return_str.push_str(", port ");
-        return_str.push_str(&self.port);
+        return_str.push_str(&self.port.to_string());
         return return_str;
     }
 }
@@ -93,3 +91,4 @@ pub fn send_request(stream: &mut std::net::TcpStream, body : &String){
     stream.flush();
 }
 
+ 

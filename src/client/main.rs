@@ -1,8 +1,8 @@
 mod client;
 
 fn main(){
-    println!("Client started... \n Form message as %message|code%");
-    let clnt = client::Client::init_from_json(("client_config.json").to_string());
+    println!("Client started...");
+    let clnt = client::Client::init();
     let servers = clnt.scan_network();
     println!("{}", &clnt.to_string());
     let mut stream = clnt.connect(servers);
