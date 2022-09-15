@@ -11,7 +11,8 @@ use std::{
 pub struct Client{
     pub name: String,
     pub adrs: std::net::IpAddr,
-    pub port: u16
+    pub port: u16,
+    pub addrs: Vec<std::net::SocketAddr>
 }
 
 impl Client{
@@ -21,11 +22,12 @@ impl Client{
         return Client{
             name: name,
             adrs: addr,
-            port: utils::PORT
+            port: utils::PORT,
+            addrs: vec![]
         }
     }
     
-    pub fn scan_network(&self) -> Vec<std::net::SocketAddr>{
+    pub fn scan_network(&mut self){
         let mut res_vec: Vec<std::net::SocketAddr> = vec![];
         let ips: Vec<u8> = (0..255).map(|v| v).collect();
         let str_adrs = &self.adrs.to_string();
@@ -55,21 +57,13 @@ impl Client{
             }
         }
         println!("Total {} devices discovered.", &total_conns.to_string());
-        return res_vec;
+        self.addrs = res_vec;
     }
 
-    pub fn connect(&self, addrs: Vec<std::net::SocketAddr>) -> std::net::TcpStream{
-        for (num, addr) in addrs.iter().enumerate(){
-            println!("{0}. {1}", num, addr);
-        }
-        let mut server_id = String::new();
-        std::io::stdin()
-        .read_line(&mut server_id)
-        .expect("Failed to read line");
-        let server_id: usize = server_id.trim().parse().unwrap();
-        let mut curr_connect_result = std::net::TcpStream::connect_timeout(&addrs[server_id], std::time::Duration::from_millis(2));
+    pub fn connect(&self, &addr: &std::net::SocketAddr) -> std::net::TcpStream{
+        let mut curr_connect_result = std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_millis(2));
         if curr_connect_result.is_ok(){
-            println!("Connected to server {}", &addrs[server_id]);
+            println!("Connected to server {}", &addr);
         }
         return curr_connect_result.unwrap();
     }
@@ -84,6 +78,39 @@ impl Client{
         return_str.push_str(&self.port.to_string());
         return return_str;
     }
+}
+
+impl eframe::App for Client{
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame){
+        eframe::egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading(&self.name);
+            ui.horizontal(|ui| {
+                ui.label("Client name: ");
+                ui.text_edit_singleline(&mut self.name);
+            });
+            if ui.button("Scan networks").clicked() && self.addrs.len() == 0{
+                ui.spinner();
+                self.scan_network();  
+            }
+            for addr in &self.addrs{
+                let butt_str = ("Connect to ").to_string() + &addr.to_string();
+                if ui.button(butt_str).clicked(){
+                    let mut stream = self.connect(&addr);
+                    let mut outgoing_msg = String::new();
+                    ui.text_edit_singleline(&mut outgoing_msg);
+                    loop{
+                        if outgoing_msg.len() > 0 && outgoing_msg.chars().nth(outgoing_msg.len() - 1).unwrap() == '\n' {
+                            send_request(&mut stream, &outgoing_msg);
+                            outgoing_msg = "".to_string();
+                        }
+                    } 
+                }
+            }
+        });
+
+    }
+
+    
 }
 
 pub fn send_request(stream: &mut std::net::TcpStream, body : &String){
