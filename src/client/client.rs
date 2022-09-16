@@ -7,12 +7,16 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-#[derive(serde::Deserialize, Debug, Clone)]
+#[derive(Debug)]
 pub struct Client{
     pub name: String,
     pub adrs: std::net::IpAddr,
     pub port: u16,
-    pub addrs: Vec<std::net::SocketAddr>
+    pub addrs: Vec<std::net::SocketAddr>,
+    pub curr_addr: std::net::SocketAddr,
+    //pub curr_addr: std::net::TcpStream,
+    pub is_connected: bool,
+    pub outgoing_msg: String
 }
 
 impl Client{
@@ -23,7 +27,12 @@ impl Client{
             name: name,
             adrs: addr,
             port: utils::PORT,
-            addrs: vec![]
+            addrs: vec![],
+            curr_addr: std::net::SocketAddr::from(([127, 0, 0, 1], 1337)),
+            //curr_strm: std::net::TcpStream::connect_timeout(
+            //    &std::net::SocketAddr::from(([127, 0, 0, 1], 1337)), std::time::Duration::from_millis(2)).unwrap(),
+            is_connected: false,
+            outgoing_msg: "".to_string()
         }
     }
     
@@ -49,7 +58,7 @@ impl Client{
                 let mut buf_reader = std::io::BufReader::new(&mut unwrapped_stream);
                 let mut server_line = String::new();
                 buf_reader.read_line(&mut server_line).unwrap();
-                if matches!(&server_line, _check_string){
+                if server_line.eq(&_check_string){
                     println!("Connection established at {}", &curr_adr);
                     res_vec.push(curr_adr);
                     total_conns += 1;
@@ -60,12 +69,9 @@ impl Client{
         self.addrs = res_vec;
     }
 
-    pub fn connect(&self, &addr: &std::net::SocketAddr) -> std::net::TcpStream{
-        let mut curr_connect_result = std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_millis(2));
-        if curr_connect_result.is_ok(){
-            println!("Connected to server {}", &addr);
-        }
-        return curr_connect_result.unwrap();
+    pub fn connect(& mut self, &addr: &std::net::SocketAddr){
+        self.curr_addr = addr;
+        self.is_connected = true;
     }
 
     pub fn to_string(&self) -> String{
@@ -78,12 +84,23 @@ impl Client{
         return_str.push_str(&self.port.to_string());
         return return_str;
     }
+
+    pub fn send_request(&mut self, body : &String){
+        let curr_connect_result = std::net::TcpStream::connect_timeout(&self.curr_addr, std::time::Duration::from_millis(2));
+        let mut strm = curr_connect_result.unwrap();
+        strm.write(body.as_bytes()).unwrap();
+        strm.flush().unwrap();
+    }
+
 }
+
+
+
 
 impl eframe::App for Client{
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame){
         eframe::egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading(&self.name);
+            ui.heading("Client GUI");
             ui.horizontal(|ui| {
                 ui.label("Client name: ");
                 ui.text_edit_singleline(&mut self.name);
@@ -92,30 +109,37 @@ impl eframe::App for Client{
                 ui.spinner();
                 self.scan_network();  
             }
-            for addr in &self.addrs{
-                let butt_str = ("Connect to ").to_string() + &addr.to_string();
-                if ui.button(butt_str).clicked(){
-                    let mut stream = self.connect(&addr);
-                    let mut outgoing_msg = String::new();
-                    ui.text_edit_singleline(&mut outgoing_msg);
-                    loop{
-                        if outgoing_msg.len() > 0 && outgoing_msg.chars().nth(outgoing_msg.len() - 1).unwrap() == '\n' {
-                            send_request(&mut stream, &outgoing_msg);
-                            outgoing_msg = "".to_string();
-                        }
-                    } 
+            let loop_addr = self.addrs.clone();
+            if !self.is_connected{
+                for addr in loop_addr{
+                    let butt_str = ("Connect to ").to_string() + &addr.to_string();
+                    if ui.button(butt_str).clicked(){
+                        self.connect(&addr);
+                    }
                 }
             }
+            if self.is_connected{
+                ui.horizontal(|ui| {
+                    ui.label("Send message");
+                    ui.text_edit_singleline(&mut self.outgoing_msg);
+                if self.outgoing_msg.len() > 0 && ctx.input().key_pressed(eframe::egui::Key::Enter) {
+                    let copy_msg = self.outgoing_msg.clone();
+                    self.send_request(&copy_msg);
+                    self.outgoing_msg = "".to_string();
+                }            
+                });
+            if ui.button("Disconnect").clicked(){
+                self.is_connected = false;
+                self.addrs = vec![];
+                self.outgoing_msg = "".to_string();
+            }
+            }
+
         });
 
     }
 
     
-}
-
-pub fn send_request(stream: &mut std::net::TcpStream, body : &String){
-    stream.write(body.as_bytes());
-    stream.flush();
 }
 
  

@@ -1,4 +1,4 @@
-pub const PORT:u16 = 8080;
+pub const PORT:u16 = 1337;
 
 pub enum MessageType{
     HelloMsg,
