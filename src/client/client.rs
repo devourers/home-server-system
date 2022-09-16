@@ -4,7 +4,7 @@ use serde_json;
 use serde;
 use std::{
     io::{prelude::*, BufReader},
-    net::{TcpListener, TcpStream},
+    net::{TcpListener, TcpStream}
 };
 
 #[derive(Debug)]
@@ -16,7 +16,8 @@ pub struct Client{
     pub curr_addr: std::net::SocketAddr,
     //pub curr_addr: std::net::TcpStream,
     pub is_connected: bool,
-    pub outgoing_msg: String
+    pub outgoing_msg: String,
+    pub server_commands: std::collections::HashMap<String, String>
 }
 
 impl Client{
@@ -32,7 +33,8 @@ impl Client{
             //curr_strm: std::net::TcpStream::connect_timeout(
             //    &std::net::SocketAddr::from(([127, 0, 0, 1], 1337)), std::time::Duration::from_millis(2)).unwrap(),
             is_connected: false,
-            outgoing_msg: "".to_string()
+            outgoing_msg: "".to_string(),
+            server_commands: std::collections::HashMap::new()
         }
     }
     
@@ -50,7 +52,7 @@ impl Client{
             let curr_connect_result = std::net::TcpStream::connect_timeout(&curr_adr, std::time::Duration::from_millis(2));
             if curr_connect_result.is_ok() {
                 let mut unwrapped_stream = curr_connect_result.unwrap();
-                let _check_string = String::from("conn\n");
+                let _check_string = String::from("conn");
                 let mut msg_to_server = self.name.to_string();
                 msg_to_server.push_str("\n");
                 let _wr_r = unwrapped_stream.write(&msg_to_server.as_bytes()).unwrap();
@@ -58,8 +60,13 @@ impl Client{
                 let mut buf_reader = std::io::BufReader::new(&mut unwrapped_stream);
                 let mut server_line = String::new();
                 buf_reader.read_line(&mut server_line).unwrap();
-                if server_line.eq(&_check_string){
+                let splitted_server_line: Vec<&str> = server_line.split(";").collect();
+                if splitted_server_line[0].eq(&_check_string){
                     println!("Connection established at {}", &curr_adr);
+                    for i in 1..splitted_server_line.len(){
+                        let curr_command: Vec<&str> = splitted_server_line[1].split('|').collect();
+                        self.server_commands.insert(curr_command[0].to_string(), curr_command[1].to_string());
+                    }
                     res_vec.push(curr_adr);
                     total_conns += 1;
                 }
@@ -128,11 +135,20 @@ impl eframe::App for Client{
                     self.outgoing_msg = "".to_string();
                 }            
                 });
-            if ui.button("Disconnect").clicked(){
-                self.is_connected = false;
-                self.addrs = vec![];
-                self.outgoing_msg = "".to_string();
-            }
+                ui.horizontal(|ui|{
+                    ui.heading("Server commands");
+                    let loop_comms = self.server_commands.clone();
+                    for command in loop_comms{
+                        if ui.button(&command.0).clicked(){
+                            self.send_request(&command.0);
+                        }
+                    }
+                });
+                if ui.button("Disconnect").clicked(){
+                    self.is_connected = false;
+                    self.addrs = vec![];
+                    self.outgoing_msg = "".to_string();
+                }
             }
 
         if ui.button("Quit").clicked(){

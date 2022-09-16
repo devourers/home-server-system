@@ -59,7 +59,14 @@ impl Server{
             let body: &String = &client_line;
             let sender: &String = &String::from("Client");
             let msg = utils::Message::new(body, sender, utils::MessageType::HelloMsg);
-            let response = "conn\n";
+            let mut response = "conn;".to_string();
+            for command in &self.commands{
+                response += &command.0;
+                response += "|";
+                response += &command.1.brief;
+                response += ";";
+            }
+            response += "\n";
             stream.write(response.as_bytes()).unwrap();
             stream.flush().unwrap();
             self.process_message(&msg);
