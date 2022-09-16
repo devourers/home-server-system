@@ -19,12 +19,23 @@ pub struct Server{
 impl Server{
     pub fn init() -> Self{
         let addr = local_ip_address::local_ip().unwrap();
-        let name = ("home-server").to_string(); //TODO -- parse with json, wait for commands
-        return Server{
-            name: name,
-            adrs: addr,
-            port: utils::PORT,
-            commands: std::collections::HashMap::new()
+        let name = ("home-server").to_string();
+        let data = std::fs::read_to_string("server_commands.json");
+        if data.is_ok() { //if we have commands then add them
+            let cmmnds: std::collections::HashMap<String, utils::ServerCommand> = serde_json::from_str(&data.unwrap()).unwrap();
+            return Server{
+                name: name,
+                adrs: addr,
+                port: utils::PORT,
+                commands: cmmnds
+            }
+        } else{
+            return Server{
+                name: name,
+                adrs: addr,
+                port: utils::PORT,
+                commands: std::collections::HashMap::new()
+            }
         }
     }
 

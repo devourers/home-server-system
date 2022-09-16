@@ -6,10 +6,13 @@ pub enum MessageType{
     //todo...
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug, serde::Deserialize)]
 pub enum CommandType{
+    #[serde(rename = "Sync")]
     Sync,
+    #[serde(rename = "Exec")]
     Exec,
+    #[serde(rename = "Send")]
     Send
 }
 
@@ -36,8 +39,8 @@ impl Message{
 }
 
 
-
-pub struct ServerCommand{
+#[derive(Debug, serde::Deserialize)]
+pub struct ServerCommand{   
     pub name: String,
     pub brief: String,
     pub command: String,
@@ -48,7 +51,7 @@ pub struct ServerCommand{
 
 impl ServerCommand{
     pub fn exec(&self){
-        if self.command_type == CommandType::Exec{
+        if self.command_type == CommandType::Exec {
             std::process::Command::new(&self.command).args(&self.args).spawn().unwrap();
         }
     }
