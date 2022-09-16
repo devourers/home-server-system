@@ -135,7 +135,11 @@ impl eframe::App for Client{
             }
             }
 
+        if ui.button("Quit").clicked(){
+            _frame.close();
+        }
         });
+
 
     }
 
