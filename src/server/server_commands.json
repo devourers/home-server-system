@@ -1,0 +1,9 @@
+{
+    "test":{
+        "name": "test",
+        "brief" : "Test command to echo a message, actually it does nothing. Needed for debug of tooltip and buttons in client",
+        "command" : "echo",
+        "args" : ["test"],
+        "command_type": "Exec"
+    }
+}

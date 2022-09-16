@@ -1,4 +1,5 @@
 
+use futures::future::Map;
 use notify_rust::Notification;
 use utils;
 use std::{
@@ -6,11 +7,12 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-#[derive(serde::Deserialize, Debug, Clone)]
+
 pub struct Server{
     pub name: String,
     pub adrs: std::net::IpAddr,
-    pub port: u16
+    pub port: u16,
+    pub commands: std::collections::HashMap<String, utils::ServerCommand>
 }
 
 
@@ -21,7 +23,8 @@ impl Server{
         return Server{
             name: name,
             adrs: addr,
-            port: utils::PORT
+            port: utils::PORT,
+            commands: std::collections::HashMap::new()
         }
     }
 
@@ -46,8 +49,8 @@ impl Server{
             let sender: &String = &String::from("Client");
             let msg = utils::Message::new(body, sender, utils::MessageType::HelloMsg);
             let response = "conn\n";
-            stream.write(response.as_bytes());
-            stream.flush();
+            stream.write(response.as_bytes()).unwrap();
+            stream.flush().unwrap();
             self.process_message(&msg);
         }
     

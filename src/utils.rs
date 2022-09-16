@@ -6,6 +6,13 @@ pub enum MessageType{
     //todo...
 }
 
+#[derive(PartialEq)]
+pub enum CommandType{
+    Sync,
+    Exec,
+    Send
+}
+
 pub struct Message{
     pub body: String,
     pub sender: String,
@@ -28,3 +35,21 @@ impl Message{
     }
 }
 
+
+
+pub struct ServerCommand{
+    pub name: String,
+    pub brief: String,
+    pub command: String,
+    pub args: Vec<String>,
+    pub command_type: CommandType
+}
+
+
+impl ServerCommand{
+    pub fn exec(&self){
+        if self.command_type == CommandType::Exec{
+            std::process::Command::new(&self.command).args(&self.args).spawn().unwrap();
+        }
+    }
+}
