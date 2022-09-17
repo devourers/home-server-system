@@ -62,17 +62,19 @@ impl Client{
                 buf_reader.read_line(&mut server_line).unwrap();
                 let splitted_server_line: Vec<&str> = server_line.split(";").collect();
                 if splitted_server_line[0].eq(&_check_string){
-                    println!("Connection established at {}", &curr_adr);
-                    for i in 1..splitted_server_line.len(){
-                        let curr_command: Vec<&str> = splitted_server_line[1].split('|').collect();
-                        self.server_commands.insert(curr_command[0].to_string(), curr_command[1].to_string());
+                    if splitted_server_line.len() > 2{
+                        for i in 1..splitted_server_line.len(){
+                            let curr_command: Vec<&str> = splitted_server_line[i].split('|').collect();
+                            if curr_command.len() == 2{
+                                self.server_commands.insert(curr_command[0].to_string(), curr_command[1].to_string());
+                            }
+                        }
                     }
                     res_vec.push(curr_adr);
                     total_conns += 1;
                 }
             }
         }
-        println!("Total {} devices discovered.", &total_conns.to_string());
         self.addrs = res_vec;
     }
 
@@ -95,8 +97,18 @@ impl Client{
     pub fn send_request(&mut self, body : &String){
         let curr_connect_result = std::net::TcpStream::connect_timeout(&self.curr_addr, std::time::Duration::from_millis(2));
         let mut strm = curr_connect_result.unwrap();
-        strm.write(body.as_bytes()).unwrap();
+        strm.write(&body.as_bytes()).unwrap();
         strm.flush().unwrap();
+    }
+
+    pub fn send_file(&mut self, file_path: &String){
+        let mut file = std::fs::read(&file_path).unwrap();
+        let curr_connect_result = std::net::TcpStream::connect_timeout(&self.curr_addr, std::time::Duration::from_millis(2));
+        let mut strm = curr_connect_result.unwrap();
+        let first_string = "file|".to_string() + &file_path + &"|".to_string();
+        let mut msg: Vec<u8> = first_string.as_bytes().to_vec();
+        msg.append(&mut file);
+        strm.write(&msg).unwrap();
     }
 
 }
@@ -112,10 +124,12 @@ impl eframe::App for Client{
                 ui.label("Client name: ");
                 ui.text_edit_singleline(&mut self.name);
             });
-            if ui.button("Scan networks").clicked() && self.addrs.len() == 0{
-                ui.spinner();
-                self.scan_network();  
-            }
+            if !self.is_connected{
+                if ui.button("Scan network").clicked() && self.addrs.len() == 0{
+                    ui.spinner();
+                    self.scan_network();  
+                }
+            }  
             let loop_addr = self.addrs.clone();
             if !self.is_connected{
                 for addr in loop_addr{
@@ -139,7 +153,9 @@ impl eframe::App for Client{
                     ui.heading("Server commands");
                     let loop_comms = self.server_commands.clone();
                     for command in loop_comms{
-                        if ui.button(&command.0).clicked(){
+                        let com_but = ui.button(&command.0);
+                        let com_but = com_but.on_hover_text(&command.1);
+                        if com_but.clicked(){
                             self.send_request(&command.0);
                         }
                     }
@@ -148,6 +164,12 @@ impl eframe::App for Client{
                     self.is_connected = false;
                     self.addrs = vec![];
                     self.outgoing_msg = "".to_string();
+                }
+                if ui.button("Send file").clicked(){
+                    if let Some(path) = rfd::FileDialog::new().pick_file() {
+                        let picked_path = Some(path.display().to_string()).unwrap();
+                        self.send_file(&picked_path);
+                    }
                 }
             }
 

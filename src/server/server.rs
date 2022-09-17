@@ -1,4 +1,3 @@
-
 use futures::future::Map;
 use notify_rust::Notification;
 use utils;
@@ -57,8 +56,16 @@ impl Server{
                 break;
             }
             let body: &String = &client_line;
+            let splitted_body: Vec<&str> = body.split('|').collect();
+            if  splitted_body[0] == "file"{
+                let name = "test_file";
+                std::fs::write(&name, splitted_body[2]).unwrap();
+            }
             let sender: &String = &String::from("Client");
             let msg = utils::Message::new(body, sender, utils::MessageType::HelloMsg);
+            if self.commands.contains_key(body){
+                self.commands[body].exec();
+            }
             let mut response = "conn;".to_string();
             for command in &self.commands{
                 response += &command.0;
