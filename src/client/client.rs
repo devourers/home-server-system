@@ -43,13 +43,12 @@ impl Client{
         let ips: Vec<u8> = (0..255).map(|v| v).collect();
         let str_adrs = &self.adrs.to_string();
         let parsed_net: Vec<&str> = str_adrs.split(".").collect();
-        let mut total_conns = 0;
         for ip in ips{
             let addr1: u8 = parsed_net[0].parse().unwrap();
             let addr2: u8 = parsed_net[1].parse().unwrap();
             let addr3: u8 = parsed_net[2].parse().unwrap();
             let curr_adr = std::net::SocketAddr::from(([addr1, addr2, addr3, ip], self.port));
-            let curr_connect_result = std::net::TcpStream::connect_timeout(&curr_adr, std::time::Duration::from_millis(2));
+            let curr_connect_result = std::net::TcpStream::connect_timeout(&curr_adr, std::time::Duration::from_secs(5));
             if curr_connect_result.is_ok() {
                 let mut unwrapped_stream = curr_connect_result.unwrap();
                 let _check_string = String::from("conn");
@@ -71,7 +70,6 @@ impl Client{
                         }
                     }
                     res_vec.push(curr_adr);
-                    total_conns += 1;
                 }
             }
         }
@@ -95,7 +93,7 @@ impl Client{
     }
 
     pub fn send_request(&mut self, body : &String){
-        let curr_connect_result = std::net::TcpStream::connect_timeout(&self.curr_addr, std::time::Duration::from_millis(2));
+        let curr_connect_result = std::net::TcpStream::connect_timeout(&self.curr_addr, std::time::Duration::from_millis(20));
         let mut strm = curr_connect_result.unwrap();
         strm.write(&body.as_bytes()).unwrap();
         strm.flush().unwrap();
@@ -103,7 +101,7 @@ impl Client{
 
     pub fn send_file(&mut self, file_path: &String){
         let mut file = std::fs::read(&file_path).unwrap();
-        let curr_connect_result = std::net::TcpStream::connect_timeout(&self.curr_addr, std::time::Duration::from_millis(2));
+        let curr_connect_result = std::net::TcpStream::connect_timeout(&self.curr_addr, std::time::Duration::from_millis(20));
         let mut strm = curr_connect_result.unwrap();
         let first_string = "file|".to_string() + &file_path + &"|".to_string();
         let mut msg: Vec<u8> = first_string.as_bytes().to_vec();
@@ -166,10 +164,11 @@ impl eframe::App for Client{
                     self.outgoing_msg = "".to_string();
                 }
                 if ui.button("Send file").clicked(){
+                    let mut picked_path = String::new();
                     if let Some(path) = rfd::FileDialog::new().pick_file() {
-                        let picked_path = Some(path.display().to_string()).unwrap();
-                        self.send_file(&picked_path);
+                        picked_path = Some(path.display().to_string()).unwrap();
                     }
+                    self.send_file(&picked_path);
                 }
             }
 
