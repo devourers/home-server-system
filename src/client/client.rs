@@ -4,7 +4,7 @@ use serde_json;
 use serde;
 use std::{
     io::{prelude::*, BufReader},
-    net::{TcpListener, TcpStream}
+    net::{TcpListener, TcpStream}, str::FromStr
 };
 
 #[derive(Debug)]
@@ -100,11 +100,13 @@ impl Client{
     }
 
     pub fn send_file(&mut self, file_path: &String){
-        let mut file = std::fs::read(&file_path).unwrap();
+        let file = std::fs::read(&file_path).unwrap();
         let curr_connect_result = std::net::TcpStream::connect_timeout(&self.curr_addr, std::time::Duration::from_millis(20));
         let mut strm = curr_connect_result.unwrap();
         let first_string = "file|".to_string() + &file_path + &"|".to_string();
         let mut msg: Vec<u8> = first_string.as_bytes().to_vec();
+        let file = base64::encode(&file);
+        let mut file = file.as_bytes().to_vec();
         msg.append(&mut file);
         strm.write(&msg).unwrap();
     }
@@ -123,10 +125,22 @@ impl eframe::App for Client{
                 ui.text_edit_singleline(&mut self.name);
             });
             if !self.is_connected{
+
                 if ui.button("Scan network").clicked() && self.addrs.len() == 0{
                     ui.spinner();
                     self.scan_network();  
                 }
+                ui.horizontal(|ui| {
+                    ui.label("Connect to known IP ");
+                    ui.text_edit_singleline(&mut self.curr_addr.to_string());
+                    if self.curr_addr.to_string().len() > 0 && ctx.input().key_pressed(eframe::egui::Key::Enter){
+                        let addr = std::net::SocketAddr::from_str(&self.curr_addr.to_string());
+                        if addr.is_ok(){
+                            self.connect(&addr.unwrap());
+                        }
+                    }
+                
+                });
             }  
             let loop_addr = self.addrs.clone();
             if !self.is_connected{

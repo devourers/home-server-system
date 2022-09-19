@@ -2,7 +2,7 @@ pub const PORT:u16 = 1337;
 
 pub enum MessageType{
     HelloMsg,
-    ShutdownMsg,
+    CommandMsg,
     //todo...
 }
 
@@ -52,7 +52,7 @@ pub struct ServerCommand{
 impl ServerCommand{
     pub fn exec(&self){
         if self.command_type == CommandType::Exec {
-            std::process::Command::new(&self.command).args(&self.args).spawn().unwrap();
+            std::process::Command::new(&self.command).args(&self.args).spawn();
         }
     }
 }

@@ -55,14 +55,23 @@ impl Server{
             if buff_res.is_err() || matches!(client_line.as_str(), ""){
                 break;
             }
+            let mut msg_type: utils::MessageType = utils::MessageType::HelloMsg;
             let body: &String = &client_line;
             let splitted_body: Vec<&str> = body.split('|').collect();
             if  splitted_body[0] == "file"{
-                let name = "test_file";
-                std::fs::write(&name, splitted_body[2]).unwrap();
+                let mut name = "";
+                if std::env::consts::OS == "windows"{
+                    name = splitted_body[1].split('\\').last().unwrap();
+                }
+                else{
+                    name = splitted_body[1].split('/').last().unwrap();
+                } //is it win only? test
+                let file_content = base64::decode(&splitted_body[2]).unwrap();
+                let file_content = String::from_utf8(file_content).unwrap();
+                std::fs::write(&name, &file_content).unwrap();
+                msg_type = utils::MessageType::CommandMsg;
             }
             let sender: &String = &String::from("Client");
-            let msg = utils::Message::new(body, sender, utils::MessageType::HelloMsg);
             if self.commands.contains_key(body){
                 self.commands[body].exec();
             }
@@ -72,10 +81,12 @@ impl Server{
                 response += "|";
                 response += &command.1.brief;
                 response += ";";
+                msg_type = utils::MessageType::CommandMsg;
             }
             response += "\n";
             stream.write(response.as_bytes()).unwrap();
             stream.flush().unwrap();
+            let msg = utils::Message::new(body, sender, msg_type);
             self.process_message(&msg);
         }
     
@@ -85,7 +96,7 @@ impl Server{
         if matches!(msg.msg_type, utils::MessageType::HelloMsg){
             self.send_notif(&msg.body);
             return 0;
-        } else if matches!(msg.msg_type, utils::MessageType::ShutdownMsg){ 
+        } else if matches!(msg.msg_type, utils::MessageType::CommandMsg){ 
             return 0;
         }
         else{
