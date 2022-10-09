@@ -48,69 +48,55 @@ impl Server{
 
     pub fn handle_stream(&self, stream: std::result::Result<std::net::TcpStream, std::io::Error>){
         let mut stream = stream.unwrap();
-        loop{
-            let mut buf_reader = std::io::BufReader::new(&mut stream);
-            let mut client_line = String::new();
-            let buff_res = buf_reader.read_line(&mut client_line);
-            if buff_res.is_err() || matches!(client_line.as_str(), ""){
-                break;
-            }
-            let mut msg_type: utils::MessageType = utils::MessageType::HelloMsg;
-            let body: &String = &client_line;
-            let splitted_body: Vec<&str> = body.split('|').collect();
-            if  splitted_body[0] == "file"{
-                let mut name = "";
-                if std::env::consts::OS == "windows"{
-                    name = splitted_body[1].split('\\').last().unwrap();
-                }
-                else{
-                    name = splitted_body[1].split('/').last().unwrap();
-                } //is it win only? test
-                let file_content = base64::decode(&splitted_body[2]).unwrap();
-                let file_content = String::from_utf8(file_content).unwrap();
-                std::fs::write(&name, &file_content).unwrap();
-                msg_type = utils::MessageType::CommandMsg;
-            }
-            let sender: &String = &String::from("Client");
-            if self.commands.contains_key(body){
-                self.commands[body].exec();
-            }
+        let mut buf_reader = std::io::BufReader::new(&mut stream);
+        let mut client_line = String::new();
+        let buff_res = buf_reader.read_line(&mut client_line).unwrap();
+        let body: &String = &client_line;
+        if body == "conn\n"{
             let mut response = "conn;".to_string();
             for command in &self.commands{
                 response += &command.0;
                 response += "|";
                 response += &command.1.brief;
                 response += ";";
-                msg_type = utils::MessageType::CommandMsg;
             }
             response += "\n";
             stream.write(response.as_bytes()).unwrap();
             stream.flush().unwrap();
-            let msg = utils::Message::new(body, sender, msg_type);
-            self.process_message(&msg);
         }
-    
-    }
-    
-    pub fn process_message(&self, msg : &utils::Message) -> i32{
-        if matches!(msg.msg_type, utils::MessageType::HelloMsg){
-            self.send_notif(&msg.body);
-            return 0;
-        } else if matches!(msg.msg_type, utils::MessageType::CommandMsg){ 
-            return 0;
+        let splitted_body: Vec<&str> = body.split('|').collect();
+        if  splitted_body[0] == "file"{
+            let mut name = "";
+            if std::env::consts::OS == "windows"{
+                name = splitted_body[1].split('\\').last().unwrap();
+            }
+            else{
+                name = splitted_body[1].split('/').last().unwrap();
+            } //is it win only? test
+            let file_content = base64::decode(&splitted_body[2]).unwrap();
+            let file_content = String::from_utf8(file_content).unwrap();
+            std::fs::write(&name, &file_content).unwrap();
         }
-        else{
-            return -1;
+        if self.commands.contains_key(body) {
+            let res = self.commands[body].exec();
+            if res.0 == utils::CommandCode::Done{
+                println!("Success: command {}", body);
+            }
+            else if res.0 == utils::CommandCode::Error{
+                println!("Error: command {}", body);
+            }
         }
-    }
-
-
-    pub fn send_notif(&self, body: &String, ) {
-        Notification::new()
-        .summary("home-server")
-        .body(body)
-        .icon("dialog_information")
-        .show().unwrap();
+        if self.commands.contains_key(splitted_body[0]){
+            let res = self.commands[splitted_body[0]].exec();
+            if res.0 == utils::CommandCode::Sync{
+                let paths = utils::list_nested_dirs(res.1);
+                let body_copy = splitted_body[0].clone().to_string();
+                let sync_loc = res.1.to_string();
+                let response_str = utils::form_sync_response(body_copy, &paths, &sync_loc);
+                stream.write(&response_str.as_bytes()).unwrap();
+                stream.flush().unwrap();
+            }
+        }
     }
 }
 

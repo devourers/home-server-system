@@ -17,13 +17,20 @@ pub struct Client{
     //pub curr_addr: std::net::TcpStream,
     pub is_connected: bool,
     pub outgoing_msg: String,
-    pub server_commands: std::collections::HashMap<String, String>
+    pub server_commands: std::collections::HashMap<String, String>,
+    pub client_sync_locations: std::collections::HashMap<String, String>
 }
 
 impl Client{
     pub fn init() -> Self{
         let addr = local_ip_address::local_ip().unwrap();
         let name = ("home-client").to_string(); //TODO -- parse with json, wait for commands
+        let path = "client_config.json";
+        let data = std::fs::read_to_string(&path);
+        let mut sync_locs: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        if data.is_ok(){
+            sync_locs = serde_json::from_str(&data.unwrap().as_str()).unwrap();
+        }
         return Client{
             name: name,
             adrs: addr,
@@ -34,7 +41,8 @@ impl Client{
             //    &std::net::SocketAddr::from(([127, 0, 0, 1], 1337)), std::time::Duration::from_millis(2)).unwrap(),
             is_connected: false,
             outgoing_msg: "".to_string(),
-            server_commands: std::collections::HashMap::new()
+            server_commands: std::collections::HashMap::new(),
+            client_sync_locations: sync_locs,
         }
     }
     
@@ -52,7 +60,7 @@ impl Client{
             if curr_connect_result.is_ok() {
                 let mut unwrapped_stream = curr_connect_result.unwrap();
                 let _check_string = String::from("conn");
-                let mut msg_to_server = self.name.to_string();
+                let mut msg_to_server = _check_string.to_string();
                 msg_to_server.push_str("\n");
                 let _wr_r = unwrapped_stream.write(&msg_to_server.as_bytes()).unwrap();
                 let _fl_r = unwrapped_stream.flush().unwrap();
@@ -81,22 +89,12 @@ impl Client{
         self.is_connected = true;
     }
 
-    pub fn to_string(&self) -> String{
-        let mut return_str = String::new();
-        return_str.push_str("Client ");
-        return_str.push_str(&self.name);
-        return_str.push_str(", network ");
-        return_str.push_str(&self.adrs.to_string());
-        return_str.push_str(", port ");
-        return_str.push_str(&self.port.to_string());
-        return return_str;
-    }
-
-    pub fn send_request(&mut self, body : &String){
+    pub fn send_request(&mut self, body : &String) -> std::net::TcpStream{
         let curr_connect_result = std::net::TcpStream::connect_timeout(&self.curr_addr, std::time::Duration::from_millis(20));
         let mut strm = curr_connect_result.unwrap();
         strm.write(&body.as_bytes()).unwrap();
         strm.flush().unwrap();
+        return strm;
     }
 
     pub fn send_file(&mut self, file_path: &String){
@@ -168,7 +166,19 @@ impl eframe::App for Client{
                         let com_but = ui.button(&command.0);
                         let com_but = com_but.on_hover_text(&command.1);
                         if com_but.clicked(){
-                            self.send_request(&command.0);
+                            if command.0.contains("sync"){
+                                let files = utils::list_nested_dirs(&self.client_sync_locations[&command.0]);
+                                let command0 = command.0.clone();
+                                let msg = utils::form_sync_response(command0, &files, &self.client_sync_locations[&command.0]);
+                                let mut curr_stream = self.send_request(&msg);
+                                let mut buf_reader = std::io::BufReader::new(&mut curr_stream);
+                                let mut server_line = String::new();
+                                buf_reader.read_line(&mut server_line).unwrap();
+                                utils::compare_dirs(&msg, &server_line, &std::path::Path::new(&self.client_sync_locations[&command.0]));
+                            }
+                            else{
+                                self.send_request(&command.0);
+                            }
                         }
                     }
                 });
