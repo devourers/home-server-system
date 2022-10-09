@@ -56,7 +56,7 @@ impl Client{
             let addr2: u8 = parsed_net[1].parse().unwrap();
             let addr3: u8 = parsed_net[2].parse().unwrap();
             let curr_adr = std::net::SocketAddr::from(([addr1, addr2, addr3, ip], self.port));
-            let curr_connect_result = std::net::TcpStream::connect_timeout(&curr_adr, std::time::Duration::from_millis(10));
+            let curr_connect_result = std::net::TcpStream::connect_timeout(&curr_adr, std::time::Duration::from_millis(50));
             if curr_connect_result.is_ok() {
                 let mut unwrapped_stream = curr_connect_result.unwrap();
                 let _check_string = String::from("conn");
@@ -90,7 +90,7 @@ impl Client{
     }
 
     pub fn send_request(&mut self, body : &String) -> std::net::TcpStream{
-        let curr_connect_result = std::net::TcpStream::connect_timeout(&self.curr_addr, std::time::Duration::from_millis(20));
+        let curr_connect_result = std::net::TcpStream::connect_timeout(&self.curr_addr, std::time::Duration::from_millis(300));
         let mut strm = curr_connect_result.unwrap();
         strm.write(&body.as_bytes()).unwrap();
         strm.flush().unwrap();
