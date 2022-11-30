@@ -1,4 +1,3 @@
-use notify_rust::Notification;
 use utils;
 use serde_json;
 use serde;
@@ -14,6 +13,7 @@ pub struct Client{
     pub port: u16,
     pub addrs: Vec<std::net::SocketAddr>,
     pub curr_addr: std::net::SocketAddr,
+    pub curr_adrr_str: String,
     //pub curr_addr: std::net::TcpStream,
     pub is_connected: bool,
     pub outgoing_msg: String,
@@ -37,6 +37,7 @@ impl Client{
             port: utils::PORT,
             addrs: vec![],
             curr_addr: std::net::SocketAddr::from(([127, 0, 0, 1], 1337)),
+            curr_adrr_str: "".to_string(),
             //curr_strm: std::net::TcpStream::connect_timeout(
             //    &std::net::SocketAddr::from(([127, 0, 0, 1], 1337)), std::time::Duration::from_millis(2)).unwrap(),
             is_connected: false,
@@ -82,6 +83,37 @@ impl Client{
             }
         }
         self.addrs = res_vec;
+    }
+
+    pub fn connect_direct(&mut self){
+        let addr = std::net::SocketAddr::from_str(&self.curr_adrr_str);
+        if addr.is_ok(){
+            let mut curr_adr = addr.unwrap();
+            let curr_connect_result = std::net::TcpStream::connect_timeout(&curr_adr, std::time::Duration::from_millis(50));
+            if curr_connect_result.is_ok() {
+                let mut unwrapped_stream = curr_connect_result.unwrap();
+                let _check_string = String::from("conn");
+                let mut msg_to_server = _check_string.to_string();
+                msg_to_server.push_str("\n");
+                let _wr_r = unwrapped_stream.write(&msg_to_server.as_bytes()).unwrap();
+                let _fl_r = unwrapped_stream.flush().unwrap();
+                let mut buf_reader = std::io::BufReader::new(&mut unwrapped_stream);
+                let mut server_line = String::new();
+                buf_reader.read_line(&mut server_line).unwrap();
+                let splitted_server_line: Vec<&str> = server_line.split(";").collect();
+                if splitted_server_line[0].eq(&_check_string){
+                    if splitted_server_line.len() > 2{
+                        for i in 1..splitted_server_line.len(){
+                            let curr_command: Vec<&str> = splitted_server_line[i].split('|').collect();
+                            if curr_command.len() == 2{
+                                self.server_commands.insert(curr_command[0].to_string(), curr_command[1].to_string());
+                            }
+                        }
+                    }
+                }
+                self.connect(&curr_adr);
+            }
+        }
     }
 
     pub fn connect(& mut self, &addr: &std::net::SocketAddr){
@@ -130,9 +162,10 @@ impl eframe::App for Client{
                 }
                 ui.horizontal(|ui| {
                     ui.label("Connect to known IP ");
-                    ui.text_edit_singleline(&mut self.curr_addr.to_string());
+                    ui.text_edit_singleline(&mut self.curr_adrr_str);
                     if self.curr_addr.to_string().len() > 0 && ctx.input().key_pressed(eframe::egui::Key::Enter){
-                        let addr = std::net::SocketAddr::from_str(&self.curr_addr.to_string());
+                        self.connect_direct();
+                        let addr = std::net::SocketAddr::from_str(&self.curr_adrr_str);
                         if addr.is_ok(){
                             self.connect(&addr.unwrap());
                         }
