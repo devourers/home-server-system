@@ -85,7 +85,7 @@ impl Client{
         self.addrs = res_vec;
     }
 
-    pub fn connect_direct(&mut self){
+    pub fn connect_direct(&mut self) -> bool{
         let addr = std::net::SocketAddr::from_str(&self.curr_adrr_str);
         if addr.is_ok(){
             let mut curr_adr = addr.unwrap();
@@ -112,7 +112,14 @@ impl Client{
                     }
                 }
                 self.connect(&curr_adr);
+                return true;
             }
+            else{
+                return false;
+            }
+        }
+        else{
+            return false;
         }
     }
 
@@ -164,10 +171,8 @@ impl eframe::App for Client{
                     ui.label("Connect to known IP ");
                     ui.text_edit_singleline(&mut self.curr_adrr_str);
                     if self.curr_addr.to_string().len() > 0 && ctx.input().key_pressed(eframe::egui::Key::Enter){
-                        self.connect_direct();
-                        let addr = std::net::SocketAddr::from_str(&self.curr_adrr_str);
-                        if addr.is_ok(){
-                            self.connect(&addr.unwrap());
+                        if !self.connect_direct(){
+                            self.curr_adrr_str = "".to_string();
                         }
                     }
                 
